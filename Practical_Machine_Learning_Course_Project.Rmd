@@ -1,0 +1,87 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Dustin Lanning"
+date: "April 27, 2019"
+output: 
+  html_document: 
+    keep_md: yes
+---
+
+##Overview
+
+This project will use data collected from accelerometers located on the belts, forearms, arms, and dumbells of six participants. The participants were asked to perform barbell lifts correctly and incorrectly in five different ways.
+
+The goal of the project is to construct a predictive model, predicting the manner in which an excercise will be preformed.
+
+##Prepare the Data
+
+We load the data and perform exploratory analysis on the training dataset that is located in the Appendix of this report.
+
+```{r}
+suppressPackageStartupMessages(library(caret))
+training<-read.csv("pml-training.csv", na.strings = c("NA", ""))
+testing<-read.csv("pml-testing.csv", na.strings = c("NA", ""))
+```
+
+Based on the initial analysis, there are several columns that consist primarily of NA's. These columns will not provide any value in constructing a predictive model. We eliminate columns that contain a large amount of NA's. Additionally, columns one through seven do not include information that will assist in developing a predictive model. We eliminate these columns as well.
+
+```{r}
+removeNA<-!colMeans(is.na(training))
+trainingAdj<-training[removeNA]
+trainingAdj<-trainingAdj[, -(1:7)]
+```
+
+Our training dataset has 19,622 observations. Using classe as our predictor, we will parition this dataset into a training set (70%) and a test set (30%).
+
+```{r}
+inTrain<-createDataPartition(trainingAdj$classe, p = 0.7, list = FALSE)
+train_pred<-trainingAdj[inTrain, ]
+test_pred<-trainingAdj[-inTrain, ]
+```
+
+##Predictive Model Development
+
+###Train the Model
+
+The predictive model was developed using the random forest technique, passing cross validation to the trControl parameter. Several modifications were made over a couple of days. The final version below had the least amount of training time, while producing an adequate rate of accuracy.
+
+```{r}
+set.seed(3878)
+modFit<-train(classe ~ ., data = train_pred, method = "rf", trControl = trainControl(method = "cv", number = 3), prox = TRUE)
+print(modFit)
+```
+
+###Evaluate the Model
+
+The final model is used to predict the outcomes in the test_pred dataset.
+
+```{r}
+pred<-predict(modFit, newdata = test_pred)
+conMat<-confusionMatrix(pred, reference = test_pred$classe)
+conMat
+```
+    
+The accuracy of the prediction is `r paste(round(conMat$overall["Accuracy"]*100, 3), "%")`, which is an out-of-sample error of `r paste(round((1-conMat$overall["Accuracy"])*100, 3), "%")`.
+
+##Course Project Prediction Quiz
+
+Below are the results of passing the testing dataset into the prediction model. The below predictions will be used to address the predictive quiz.
+
+```{r}
+predQuiz<-predict(modFit, newdata = testing)
+predQuiz
+```
+
+##Appendix
+
+Data structure prior to adjustment.
+
+```{r}
+str(training)
+```
+
+Post adjustment structure.
+
+```{r}
+str(trainingAdj)
+```
